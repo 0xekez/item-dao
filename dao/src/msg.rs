@@ -35,11 +35,11 @@ pub struct TokenInstantiateInfo {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct WithdrawVoteMsg {
     /// The id of the propsal that the vote ought to be withdrawn for.
-    proposal_id: u64,
+    pub proposal_id: usize,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct WebItem {
+pub struct DaoItem {
     /// The name of the webpage. Frontends are likely to make the
     /// webpage accessible at `/name`.
     pub name: String,
@@ -55,12 +55,12 @@ pub enum ProposeAction {
     ChangeQuorum { new_quorum: Uint128 },
     /// Proposes that the cost of creating a new proposal be changed
     /// to a new value.
-    ChangeProposalCost { new_proposal_cost: u64 },
+    ChangeProposalCost { new_proposal_cost: Uint128 },
 
     /// Proposes that a new webpage be added.
-    AddItem(WebItem),
+    AddItem(DaoItem),
     /// Proposes that an existinig webpage be removed.
-    RemoveItem { name: String },
+    RemoveItem { id: usize },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -90,7 +90,7 @@ pub enum VotePosition {
 pub struct VoteMsg {
     /// The ID of the proposal that the sender would like to lock
     /// their tokens on.
-    pub proposal_id: u64,
+    pub proposal_id: usize,
     /// What position that sender would like to lock their tokens to.
     pub position: VotePosition,
     /// The number of tokens that should be staked to this vote.
@@ -122,23 +122,19 @@ pub enum ExecuteMsg {
     },
 }
 
-/// Paginated listing of proposals.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ListProposalsMsg {
-    /// The ID of the proposal to start at.
-    start: u64,
-    /// How many proposals to return following that proposal.
-    count: u64,
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// Paginated listing of proposals.
-    ListProposals(ListProposalsMsg),
+    ListProposals,
     /// Get title, body, and action information for a proposal given
     /// it's proposal ID.
-    GetProposal { proposal_id: u64 },
+    GetProposal { proposal_id: usize },
+
+    /// List all of the items that have been added to the DAO.
+    ListItems,
+    /// Get all of the items that have been added to the DAO.
+    GetItem { item_id: usize },
 
     /// Get information about what the current quorum is.
     GetQuorum,

@@ -8,7 +8,7 @@ use cw2::set_contract_version;
 use crate::actions;
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{State, TokenInfo, PROPOSALS, STATE, TOKEN_INFO};
+use crate::state::{State, TokenInfo, ITEMS, PROPOSALS, STATE, TOKEN_INFO};
 use crate::tokens::{self, create_accounts};
 
 // version info for migration info
@@ -40,7 +40,7 @@ pub fn instantiate(
         name: msg.token_info.name,
         symbol: msg.token_info.symbol,
         decimals: msg.token_info.decimals,
-        total_supply: total_supply,
+        total_supply,
     };
     TOKEN_INFO.save(deps.storage, &token_info)?;
 
@@ -54,6 +54,8 @@ pub fn instantiate(
     // Set up proposal state.
     let proposals = vec![];
     PROPOSALS.save(deps.storage, &proposals)?;
+    let items = vec![];
+    ITEMS.save(deps.storage, &items)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -70,8 +72,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Withdraw(_w) => todo!(),
-        //        ExecuteMsg::Receive(r) => crate::receive::handle_receive(deps, r),
+        ExecuteMsg::Withdraw(w) => actions::handle_withdrawal(deps, env, info, w),
         ExecuteMsg::Transfer { recipient, amount } => {
             tokens::execute_transfer(deps, env, info, recipient, amount)
         }
@@ -89,24 +90,31 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ListProposals(_) => todo!(),
+        QueryMsg::ListProposals => Ok(to_binary(&PROPOSALS.load(deps.storage)?)?),
         QueryMsg::GetProposal { proposal_id } => {
             let proposals = PROPOSALS.load(deps.storage)?;
-            Ok(cosmwasm_std::to_binary(
-                proposals
-                    .get(proposal_id as usize)
-                    .ok_or(StdError::NotFound {
-                        kind: format!("no such proposal ID ({})", proposal_id),
-                    })?,
-            )?)
+            Ok(to_binary(proposals.get(proposal_id).ok_or(
+                StdError::NotFound {
+                    kind: format!("no such proposal ID ({})", proposal_id),
+                },
+            )?)?)
+        }
+        QueryMsg::ListItems => Ok(to_binary(&ITEMS.load(deps.storage)?)?),
+        QueryMsg::GetItem { item_id } => {
+            let items = ITEMS.load(deps.storage)?;
+            Ok(to_binary(items.get(item_id).ok_or(
+                StdError::NotFound {
+                    kind: format!("no such item ID ({})", item_id),
+                },
+            )?)?)
         }
         QueryMsg::GetQuorum => {
             let state = STATE.load(deps.storage)?;
-            Ok(cosmwasm_std::to_binary(&state.quorum)?)
+            Ok(to_binary(&state.quorum)?)
         }
         QueryMsg::GetProposalCost => {
             let state = STATE.load(deps.storage)?;
-            Ok(cosmwasm_std::to_binary(&state.proposal_cost)?)
+            Ok(to_binary(&state.proposal_cost)?)
         }
         QueryMsg::Balance { address } => to_binary(&tokens::query_balance(deps, address)?),
         QueryMsg::TokenInfo {} => to_binary(&tokens::query_token_info(deps)?),
@@ -115,13 +123,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg(test)]
 mod tests {
-    use crate::msg::{ProposeAction, ProposeMsg, TokenInstantiateInfo, VoteMsg, WebItem};
+    use crate::msg::{
+        DaoItem, ProposeAction, ProposeMsg, TokenInstantiateInfo, VoteMsg, WithdrawVoteMsg,
+    };
     use crate::state::{Proposal, ProposalStatus};
 
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{from_binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
-    use cw20::{BalanceResponse, Cw20Coin, Cw20ReceiveMsg};
+    use cw20::{BalanceResponse, Cw20Coin, Cw20ReceiveMsg, TokenInfoResponse};
 
     #[test]
     fn valid_initialization() {
@@ -142,11 +152,9 @@ mod tests {
         };
         let info = mock_info("creator", &[]);
 
-        // we can just call .unwrap() to assert this was a success
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
 
-        // it worked, let's query the state
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetQuorum {}).unwrap();
         let value: Uint128 = from_binary(&res).unwrap();
         assert_eq!(Uint128::from(30u128), value);
@@ -154,10 +162,37 @@ mod tests {
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetProposalCost {}).unwrap();
         let value: Uint128 = from_binary(&res).unwrap();
         assert_eq!(Uint128::from(1u128), value);
+
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::TokenInfo {}).unwrap();
+        let value: TokenInfoResponse = from_binary(&res).unwrap();
+        assert_eq!(
+            TokenInfoResponse {
+                name: "item-dao".to_string(),
+                symbol: "IDAO".to_string(),
+                decimals: 3,
+                total_supply: Uint128::from(100000u128),
+            },
+            value
+        );
+
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: "awallet".to_string(),
+            },
+        )
+        .unwrap();
+        let value: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(Uint128::from(100000u128), value.balance);
+
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::ListProposals).unwrap();
+        let value: Vec<Proposal> = from_binary(&res).unwrap();
+        assert_eq!(Vec::<Proposal>::new(), value);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "called `Result::unwrap()` on an `Err` value: InvalidQuorum")]
     fn invalid_initialization() {
         let mut deps = mock_dependencies(&[]);
 
@@ -205,7 +240,7 @@ mod tests {
         let proposal = ProposeMsg {
             title: "🦄!".to_string(),
             body: "everyone should use a unicorn emoji for their twitter profile!".to_string(),
-            action: ProposeAction::AddItem(WebItem {
+            action: ProposeAction::AddItem(DaoItem {
                 name: "unicorn emojis must be used for all profile photos".to_string(),
                 contents: "unicorn emoji shall be defined as being 🦄".to_string(),
             }),
@@ -244,7 +279,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(
+        expected = "called `Result::unwrap()` on an `Err` value: NotFound { kind: \"no such proposal ID (0)\" }"
+    )]
     fn invalid_proposal_lookup() {
         let mut deps = mock_dependencies(&[]);
 
@@ -274,7 +311,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(
+        expected = "called `Result::unwrap()` on an `Err` value: Std(Overflow { source: OverflowError { operation: Sub, operand1: \"0\", operand2: \"100\" } })"
+    )]
     fn insufficent_token_funds() {
         let mut deps = mock_dependencies(&[]);
 
@@ -302,7 +341,7 @@ mod tests {
         let proposal = ProposeMsg {
             title: "🦄!".to_string(),
             body: "everyone should use a unicorn emoji for their twitter profile!".to_string(),
-            action: ProposeAction::AddItem(WebItem {
+            action: ProposeAction::AddItem(DaoItem {
                 name: "unicorn emojis must be used for all profile photos".to_string(),
                 contents: "unicorn emoji shall be defined as being 🦄".to_string(),
             }),
@@ -345,7 +384,7 @@ mod tests {
         let proposal = ProposeMsg {
             title: "🦄!".to_string(),
             body: "everyone should use a unicorn emoji for their twitter profile!".to_string(),
-            action: ProposeAction::AddItem(WebItem {
+            action: ProposeAction::AddItem(DaoItem {
                 name: "unicorn emojis must be used for all profile photos".to_string(),
                 contents: "unicorn emoji shall be defined as being 🦄".to_string(),
             }),
@@ -381,7 +420,10 @@ mod tests {
         .unwrap();
         let prop: Proposal = from_binary(&res).unwrap();
         assert_eq!(prop.status, ProposalStatus::Pending);
-        assert_eq!(prop.yes, Uint128::from(97u128));
+        assert_eq!(
+            prop.get_votes(crate::msg::VotePosition::Yes),
+            Uint128::from(97u128)
+        );
 
         // Also assert that funds have been deducted from the proposer
         // voter's accounts. 1 token for the proposal and 97 for the
@@ -395,7 +437,19 @@ mod tests {
         )
         .unwrap();
         let value: BalanceResponse = from_binary(&res).unwrap();
-        assert_eq!(value.balance, Uint128::from(99902u128))
+        assert_eq!(value.balance, Uint128::from(99902u128));
+
+        // Make sure that the tokens have been correctly sent to the contract.
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: MOCK_CONTRACT_ADDR.to_string(),
+            },
+        )
+        .unwrap();
+        let value: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(value.balance, Uint128::from(98u128))
     }
 
     #[test]
@@ -428,7 +482,22 @@ mod tests {
         .unwrap();
         let prop: Proposal = from_binary(&res).unwrap();
         assert_eq!(prop.status, ProposalStatus::Passed);
-        assert_eq!(prop.yes, Uint128::from(98u128));
+        assert_eq!(
+            prop.get_votes(crate::msg::VotePosition::Yes),
+            Uint128::from(98u128)
+        );
+
+        // Check that tokens have been returned correctly.
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: "🦄".to_string(),
+            },
+        )
+        .unwrap();
+        let balance: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(Uint128::from(100000u128), balance.balance);
     }
 
     #[test]
@@ -460,7 +529,22 @@ mod tests {
         .unwrap();
         let prop: Proposal = from_binary(&res).unwrap();
         assert_eq!(prop.status, ProposalStatus::Passed);
-        assert_eq!(prop.yes, Uint128::from(97u128));
+        assert_eq!(
+            prop.get_votes(crate::msg::VotePosition::Yes),
+            Uint128::from(97u128)
+        );
+
+        // Check that tokens have been returned correctly.
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: "🦄".to_string(),
+            },
+        )
+        .unwrap();
+        let balance: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(Uint128::from(100000u128), balance.balance);
     }
 
     #[test]
@@ -491,8 +575,26 @@ mod tests {
         .unwrap();
         let prop: Proposal = from_binary(&res).unwrap();
         assert_eq!(prop.status, ProposalStatus::Failed);
-        assert_eq!(prop.yes, Uint128::from(97u128));
-        assert_eq!(prop.no, Uint128::from(97u128));
+        assert_eq!(
+            prop.get_votes(crate::msg::VotePosition::Yes),
+            Uint128::from(97u128)
+        );
+        assert_eq!(
+            prop.get_votes(crate::msg::VotePosition::No),
+            Uint128::from(97u128)
+        );
+
+        // Check that tokens have been returned correctly.
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: "🦄".to_string(),
+            },
+        )
+        .unwrap();
+        let balance: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(Uint128::from(100000u128), balance.balance);
     }
 
     #[test]
@@ -526,8 +628,439 @@ mod tests {
         let prop: Proposal = from_binary(&res).unwrap();
 
         assert_eq!(prop.status, ProposalStatus::Passed);
-        assert_eq!(prop.yes, Uint128::from(97u128));
-        assert_eq!(prop.abstain, Uint128::from(1u128));
+        assert_eq!(
+            prop.get_votes(crate::msg::VotePosition::Yes),
+            Uint128::from(97u128)
+        );
+        assert_eq!(
+            prop.get_votes(crate::msg::VotePosition::Abstain),
+            Uint128::from(1u128)
+        );
+
+        // Check that tokens have been returned correctly.
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: "🦄".to_string(),
+            },
+        )
+        .unwrap();
+        let balance: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(Uint128::from(100000u128), balance.balance);
+    }
+
+    #[test]
+    fn vote_yes_withdraw() {
+        let mut deps = mock_dependencies(&[]);
+        let info = mock_info("🦄", &[]);
+
+        setup_near_pass(&mut deps, info.clone());
+
+        // Withdraw all votes.
+        let msg = WithdrawVoteMsg { proposal_id: 0 };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Withdraw(msg),
+        )
+        .unwrap();
+
+        // Check that tokens have been returned correctly.
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: "🦄".to_string(),
+            },
+        )
+        .unwrap();
+        let balance: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(Uint128::from(99999u128), balance.balance);
+
+        // Get the proposal and verify that its status is pending
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::GetProposal { proposal_id: 0 },
+        )
+        .unwrap();
+        let prop: Proposal = from_binary(&res).unwrap();
+        assert_eq!(prop.status, ProposalStatus::Pending);
+        assert_eq!(
+            prop.get_votes(crate::msg::VotePosition::Yes),
+            Uint128::zero()
+        );
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "called `Result::unwrap()` on an `Err` value: VoteOnCompletedProposal"
+    )]
+    fn vote_yes_no_pass_withdraw() {
+        let mut deps = mock_dependencies(&[]);
+        let info = mock_info("🦄", &[]);
+
+        setup_near_pass(&mut deps, info.clone());
+
+        // Send a no vote which will cause the proposal to pass.
+        let vote = VoteMsg {
+            proposal_id: 0,
+            position: crate::msg::VotePosition::No,
+            amount: Uint128::from(1u128),
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Vote(vote),
+        )
+        .unwrap();
+
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::GetProposal { proposal_id: 0 },
+        )
+        .unwrap();
+        let prop: Proposal = from_binary(&res).unwrap();
+        assert_eq!(prop.status, ProposalStatus::Passed);
+        assert_eq!(
+            prop.get_votes(crate::msg::VotePosition::Yes),
+            Uint128::from(97u128)
+        );
+
+        // Check that tokens have been returned correctly.
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: "🦄".to_string(),
+            },
+        )
+        .unwrap();
+        let balance: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(Uint128::from(100000u128), balance.balance);
+
+        // Withdraw all votes.
+        let msg = WithdrawVoteMsg { proposal_id: 0 };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Withdraw(msg),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn list_proposals() {
+        let mut deps = mock_dependencies(&[]);
+
+        let msg = InstantiateMsg {
+            // Doesn't make sense to require that > 100% of tokens are
+            // required for a vote to pass.
+            quorum: Uint128::from(99u128),
+            proposal_cost: Uint128::from(100u128),
+            token_info: TokenInstantiateInfo {
+                name: "item-dao".to_string(),
+                symbol: "IDAO".to_string(),
+                decimals: 3,
+                initial_balances: vec![Cw20Coin {
+                    // note that the unicorn wallet doesn't have any
+                    // funds.
+                    address: "🦄".to_string(),
+                    amount: Uint128::from(100000u128),
+                }],
+            },
+        };
+        let info = mock_info("🦄", &[]);
+
+        instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+        let proposal = ProposeMsg {
+            title: "🦄!".to_string(),
+            body: "everyone should use a unicorn emoji for their twitter profile!".to_string(),
+            action: ProposeAction::AddItem(DaoItem {
+                name: "unicorn emojis must be used for all profile photos".to_string(),
+                contents: "unicorn emoji shall be defined as being 🦄".to_string(),
+            }),
+        };
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Propose(proposal),
+        )
+        .unwrap();
+
+        let proposal = ProposeMsg {
+            title: "🦄!".to_string(),
+            body: "everyone should use a unicorn emoji for their twitter profile!".to_string(),
+            action: ProposeAction::AddItem(DaoItem {
+                name: "unicorn emojis must be used for all profile photos".to_string(),
+                contents: "unicorn emoji shall be defined as being 🦄".to_string(),
+            }),
+        };
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Propose(proposal),
+        )
+        .unwrap();
+        let proposal = ProposeMsg {
+            title: "🦄!".to_string(),
+            body: "everyone should use a unicorn emoji for their twitter profile!".to_string(),
+            action: ProposeAction::AddItem(DaoItem {
+                name: "unicorn emojis must be used for all profile photos".to_string(),
+                contents: "unicorn emoji shall be defined as being 🦄".to_string(),
+            }),
+        };
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Propose(proposal),
+        )
+        .unwrap();
+
+        let proposal = ProposeMsg {
+            title: "🦄!".to_string(),
+            body: "everyone should use a unicorn emoji for their twitter profile!".to_string(),
+            action: ProposeAction::AddItem(DaoItem {
+                name: "unicorn emojis must be used for all profile photos".to_string(),
+                contents: "unicorn emoji shall be defined as being 🦄".to_string(),
+            }),
+        };
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Propose(proposal),
+        )
+        .unwrap();
+
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::ListProposals).unwrap();
+        let value: Vec<Proposal> = from_binary(&res).unwrap();
+        assert_eq!(4, value.len());
+    }
+
+    #[test]
+    fn proposal_actions() {
+        let mut deps = mock_dependencies(&[]);
+        let info = mock_info("🦄", &[]);
+        let msg = InstantiateMsg {
+            quorum: Uint128::from(98u128),
+            proposal_cost: Uint128::from(1u128),
+            token_info: TokenInstantiateInfo {
+                name: "item-dao".to_string(),
+                symbol: "IDAO".to_string(),
+                decimals: 3,
+                initial_balances: vec![Cw20Coin {
+                    address: "🦄".to_string(),
+                    amount: Uint128::from(100000u128),
+                }],
+            },
+        };
+        instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+        let proposal = ProposeMsg {
+            title: "🦄!".to_string(),
+            body: "everyone should use a unicorn emoji for their twitter profile!".to_string(),
+            action: ProposeAction::AddItem(DaoItem {
+                name: "unicorn emojis must be used for all profile photos".to_string(),
+                contents: "unicorn emoji shall be defined as being 🦄".to_string(),
+            }),
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Propose(proposal),
+        )
+        .unwrap();
+        // Send a yes vote which will cause the proposal to pass.
+        let vote = VoteMsg {
+            proposal_id: 0,
+            position: crate::msg::VotePosition::Yes,
+            amount: Uint128::from(100u128),
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Vote(vote),
+        )
+        .unwrap();
+
+        let proposal = ProposeMsg {
+            title: "🐮!".to_string(),
+            body: "everyone should use a cow emoji for their twitter profile!".to_string(),
+            action: ProposeAction::AddItem(DaoItem {
+                name: "cow emojis must be used for all profile photos".to_string(),
+                contents: "cow emoji shall be defined as being 🐮".to_string(),
+            }),
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Propose(proposal),
+        )
+        .unwrap();
+        // Send a yes vote which will cause the proposal to pass.
+        let vote = VoteMsg {
+            proposal_id: 1,
+            position: crate::msg::VotePosition::Yes,
+            amount: Uint128::from(100u128),
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Vote(vote),
+        )
+        .unwrap();
+
+        let items = query(deps.as_ref(), mock_env(), QueryMsg::ListItems).unwrap();
+        let items: Vec<DaoItem> = from_binary(&items).unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(
+            items[0].name,
+            "unicorn emojis must be used for all profile photos".to_string()
+        );
+        assert_eq!(
+            items[1].contents,
+            "cow emoji shall be defined as being 🐮".to_string()
+        );
+
+        let unicorn = query(deps.as_ref(), mock_env(), QueryMsg::GetItem { item_id: 0 }).unwrap();
+        let unicorn: DaoItem = from_binary(&unicorn).unwrap();
+        assert_eq!(
+            unicorn.name,
+            "unicorn emojis must be used for all profile photos"
+        );
+        assert_eq!(
+            unicorn.contents,
+            "unicorn emoji shall be defined as being 🦄".to_string()
+        );
+
+        let proposal = ProposeMsg {
+            title: "🦄!".to_string(),
+            body: "everyone should not use a unicorn emoji for their twitter profile!".to_string(),
+            action: ProposeAction::RemoveItem { id: 0 },
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Propose(proposal),
+        )
+        .unwrap();
+        // Send a yes vote which will cause the proposal to pass.
+        let vote = VoteMsg {
+            proposal_id: 2,
+            position: crate::msg::VotePosition::Yes,
+            amount: Uint128::from(100u128),
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Vote(vote),
+        )
+        .unwrap();
+
+        let items = query(deps.as_ref(), mock_env(), QueryMsg::ListItems).unwrap();
+        let items: Vec<DaoItem> = from_binary(&items).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            items[0].name,
+            "cow emojis must be used for all profile photos".to_string()
+        );
+        assert_eq!(
+            items[0].contents,
+            "cow emoji shall be defined as being 🐮".to_string()
+        );
+
+        let cow = query(deps.as_ref(), mock_env(), QueryMsg::GetItem { item_id: 0 }).unwrap();
+        let cow: DaoItem = from_binary(&cow).unwrap();
+        assert_eq!(cow.name, "cow emojis must be used for all profile photos");
+        assert_eq!(
+            cow.contents,
+            "cow emoji shall be defined as being 🐮".to_string()
+        );
+
+        let proposal = ProposeMsg {
+            title: "change the quorum to 1000".to_string(),
+            body: "this will mean more people have to vote which is good".to_string(),
+            action: ProposeAction::ChangeQuorum {
+                new_quorum: Uint128::from(1000u128),
+            },
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Propose(proposal),
+        )
+        .unwrap();
+        // Send a yes vote which will cause the proposal to pass.
+        let vote = VoteMsg {
+            proposal_id: 3,
+            position: crate::msg::VotePosition::Yes,
+            amount: Uint128::from(100u128),
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Vote(vote),
+        )
+        .unwrap();
+
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetQuorum {}).unwrap();
+        let value: Uint128 = from_binary(&res).unwrap();
+        assert_eq!(Uint128::from(1000u128), value);
+
+        let proposal = ProposeMsg {
+            title: "change the proposal cost to 1000".to_string(),
+            body: "fewer people can submit proposals which is good".to_string(),
+            action: ProposeAction::ChangeProposalCost {
+                new_proposal_cost: Uint128::from(1000u128),
+            },
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Propose(proposal),
+        )
+        .unwrap();
+        // Send a yes vote which will cause the proposal to pass.
+        let vote = VoteMsg {
+            proposal_id: 4,
+            position: crate::msg::VotePosition::Yes,
+            // Need to vote more because the quorum has changed!
+            amount: Uint128::from(1000u128),
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Vote(vote),
+        )
+        .unwrap();
+
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetProposalCost {}).unwrap();
+        let value: Uint128 = from_binary(&res).unwrap();
+        assert_eq!(Uint128::from(1000u128), value);
     }
 
     #[test]

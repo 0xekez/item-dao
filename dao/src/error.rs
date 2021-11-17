@@ -6,8 +6,8 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("Unauthorized")]
-    Unauthorized {},
+    #[error("Attempt to vote or withdraw on a completed proposal")]
+    VoteOnCompletedProposal,
 
     #[error("Quorum must be greater than zero and not greater than total token supply")]
     InvalidQuorum,
@@ -15,6 +15,6 @@ pub enum ContractError {
     #[error("Insufficent funds for proposal. Needed ({needed}), got ({got})")]
     InsufficentProposalFunds { needed: Uint128, got: Uint128 },
 
-    #[error("Can not transfer or send zero tokens")]
+    #[error("Can not transfer or send or vote with zero tokens")]
     InvalidZeroAmount,
 }
