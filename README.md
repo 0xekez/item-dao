@@ -1,12 +1,7 @@
 # item dao
 
-Two parts
+A dao for managing 'items'.
 
-1. A $WDAO token to encode voting rights
-2. (todo) a dao to manage these tokens.
-
-why two parts? why not just implement the cw20 interface and add a dao
-on top? I think this is simpler.
 
 ## Addresses
 

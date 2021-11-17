@@ -5,6 +5,7 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
+use crate::actions;
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{State, TokenInfo, PROPOSALS, STATE, TOKEN_INFO};
@@ -70,7 +71,7 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Withdraw(_w) => todo!(),
-        ExecuteMsg::Receive(r) => crate::receive::handle_receive(deps, r),
+        //        ExecuteMsg::Receive(r) => crate::receive::handle_receive(deps, r),
         ExecuteMsg::Transfer { recipient, amount } => {
             tokens::execute_transfer(deps, env, info, recipient, amount)
         }
@@ -80,6 +81,8 @@ pub fn execute(
             amount,
             msg,
         } => tokens::execute_send(deps, env, info, contract, amount, msg),
+        ExecuteMsg::Propose(p) => actions::handle_propose(deps, env, info, p),
+        ExecuteMsg::Vote(v) => actions::handle_vote(deps, env, info, v),
     }
 }
 
@@ -112,12 +115,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg(test)]
 mod tests {
-    use crate::msg::{ProposeAction, ProposeMsg, TokenInstantiateInfo, TokenMsg, VoteMsg, WebItem};
+    use crate::msg::{ProposeAction, ProposeMsg, TokenInstantiateInfo, VoteMsg, WebItem};
     use crate::state::{Proposal, ProposalStatus};
 
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{from_binary, to_binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
+    use cosmwasm_std::{from_binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
     use cw20::{BalanceResponse, Cw20Coin, Cw20ReceiveMsg};
 
     #[test]
@@ -190,7 +193,7 @@ mod tests {
                 symbol: "IDAO".to_string(),
                 decimals: 3,
                 initial_balances: vec![Cw20Coin {
-                    address: "awallet".to_string(),
+                    address: "🦄".to_string(),
                     amount: Uint128::from(100000u128),
                 }],
             },
@@ -207,18 +210,11 @@ mod tests {
                 contents: "unicorn emoji shall be defined as being 🦄".to_string(),
             }),
         };
-
-        let msg = to_binary(&TokenMsg::Propose(proposal.clone())).unwrap();
-
         execute(
             deps.as_mut(),
             mock_env(),
             info.clone(),
-            ExecuteMsg::Receive(Cw20ReceiveMsg {
-                sender: "🦄".to_string(),
-                amount: cosmwasm_std::Uint128::new(1),
-                msg,
-            }),
+            ExecuteMsg::Propose(proposal.clone()),
         )
         .unwrap();
 
@@ -299,17 +295,11 @@ mod tests {
             }),
         };
 
-        let msg = to_binary(&TokenMsg::Propose(proposal.clone())).unwrap();
-
         execute(
             deps.as_mut(),
             mock_env(),
             info.clone(),
-            ExecuteMsg::Receive(Cw20ReceiveMsg {
-                sender: "🦄".to_string(),
-                amount: cosmwasm_std::Uint128::new(99),
-                msg,
-            }),
+            ExecuteMsg::Propose(proposal),
         )
         .unwrap();
     }
@@ -332,7 +322,7 @@ mod tests {
                 symbol: "IDAO".to_string(),
                 decimals: 3,
                 initial_balances: vec![Cw20Coin {
-                    address: "awallet".to_string(),
+                    address: "🦄".to_string(),
                     amount: Uint128::from(100000u128),
                 }],
             },
@@ -347,16 +337,11 @@ mod tests {
                 contents: "unicorn emoji shall be defined as being 🦄".to_string(),
             }),
         };
-        let msg = to_binary(&TokenMsg::Propose(proposal)).unwrap();
         execute(
             deps.as_mut(),
             mock_env(),
             info.clone(),
-            ExecuteMsg::Receive(Cw20ReceiveMsg {
-                sender: "🦄".to_string(),
-                amount: cosmwasm_std::Uint128::new(1),
-                msg,
-            }),
+            ExecuteMsg::Propose(proposal),
         )
         .unwrap();
 
@@ -364,17 +349,13 @@ mod tests {
         let vote = VoteMsg {
             proposal_id: 0,
             position: crate::msg::VotePosition::Yes,
+            amount: Uint128::from(97u128),
         };
-        let msg = to_binary(&TokenMsg::Vote(vote)).unwrap();
         execute(
             deps.as_mut(),
             mock_env(),
             info.clone(),
-            ExecuteMsg::Receive(Cw20ReceiveMsg {
-                sender: "🦄".to_string(),
-                amount: Uint128::from(97u128), // one away from quorum requirement
-                msg,
-            }),
+            ExecuteMsg::Vote(vote),
         )
         .unwrap();
 
@@ -401,17 +382,13 @@ mod tests {
         let vote = VoteMsg {
             proposal_id: 0,
             position: crate::msg::VotePosition::Yes,
+            amount: Uint128::from(1u128),
         };
-        let msg = to_binary(&TokenMsg::Vote(vote)).unwrap();
         execute(
             deps.as_mut(),
             mock_env(),
             info.clone(),
-            ExecuteMsg::Receive(Cw20ReceiveMsg {
-                sender: "🦄".to_string(),
-                amount: Uint128::from(1u128), // meets quorum requirement exactly
-                msg,
-            }),
+            ExecuteMsg::Vote(vote),
         )
         .unwrap();
 
@@ -438,17 +415,13 @@ mod tests {
         let vote = VoteMsg {
             proposal_id: 0,
             position: crate::msg::VotePosition::No,
+            amount: Uint128::from(1u128),
         };
-        let msg = to_binary(&TokenMsg::Vote(vote)).unwrap();
         execute(
             deps.as_mut(),
             mock_env(),
             info.clone(),
-            ExecuteMsg::Receive(Cw20ReceiveMsg {
-                sender: "🦄".to_string(),
-                amount: Uint128::from(1u128), // meets quorum requirement exactly
-                msg,
-            }),
+            ExecuteMsg::Vote(vote),
         )
         .unwrap();
 
@@ -473,18 +446,13 @@ mod tests {
         let vote = VoteMsg {
             proposal_id: 0,
             position: crate::msg::VotePosition::No,
+            amount: Uint128::from(97u128),
         };
-        let msg = to_binary(&TokenMsg::Vote(vote)).unwrap();
         execute(
             deps.as_mut(),
             mock_env(),
             info.clone(),
-            ExecuteMsg::Receive(Cw20ReceiveMsg {
-                sender: "🦄".to_string(),
-                // ties yes votes which causes the proposal to fail.
-                amount: Uint128::from(97u128),
-                msg,
-            }),
+            ExecuteMsg::Vote(vote),
         )
         .unwrap();
 
@@ -511,18 +479,13 @@ mod tests {
         let vote = VoteMsg {
             proposal_id: 0,
             position: crate::msg::VotePosition::Abstain,
+            amount: Uint128::from(1u128),
         };
-        let msg = to_binary(&TokenMsg::Vote(vote)).unwrap();
         execute(
             deps.as_mut(),
             mock_env(),
             info.clone(),
-            ExecuteMsg::Receive(Cw20ReceiveMsg {
-                sender: "🦄".to_string(),
-                // ties yes votes which causes the proposal to fail.
-                amount: Uint128::from(1u128),
-                msg,
-            }),
+            ExecuteMsg::Vote(vote),
         )
         .unwrap();
 

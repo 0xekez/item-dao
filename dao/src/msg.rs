@@ -1,5 +1,5 @@
 use cosmwasm_std::{Binary, Uint128};
-use cw20::{Cw20Coin, Cw20ReceiveMsg};
+use cw20::Cw20Coin;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -93,6 +93,8 @@ pub struct VoteMsg {
     pub proposal_id: u64,
     /// What position that sender would like to lock their tokens to.
     pub position: VotePosition,
+    /// The number of tokens that should be staked to this vote.
+    pub amount: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -110,12 +112,11 @@ pub enum ExecuteMsg {
     /// Provides a means via which token holders can unlock tokens
     /// that have been comitted to a proposal.
     Withdraw(WithdrawVoteMsg),
-    /// DAO members can send messages to webdao to create new
-    /// proposals and to vote on existing ones. Both of these actions
-    /// are triggered by sending some tokens to webdao with
-    /// information about the proposal or vote encoded in the `msg`
-    /// field.
-    Receive(Cw20ReceiveMsg),
+
+    /// Create a new proposal
+    Propose(ProposeMsg),
+    /// Vote on an existing proposal
+    Vote(VoteMsg),
 
     /// Move tokens to another account without triggering actions
     Transfer { recipient: String, amount: Uint128 },

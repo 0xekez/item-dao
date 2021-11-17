@@ -1,7 +1,7 @@
+pub mod actions;
 pub mod contract;
 mod error;
 pub mod msg;
-pub mod receive;
 pub mod state;
 pub mod tokens;
 
