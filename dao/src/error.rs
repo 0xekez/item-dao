@@ -1,7 +1,7 @@
 use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
@@ -9,9 +9,12 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Invalid quorum: quorum must be greater than zero")]
+    #[error("Quorum must be greater than zero and not greater than total token supply")]
     InvalidQuorum,
 
     #[error("Insufficent funds for proposal. Needed ({needed}), got ({got})")]
     InsufficentProposalFunds { needed: Uint128, got: Uint128 },
+
+    #[error("Can not transfer or send zero tokens")]
+    InvalidZeroAmount,
 }

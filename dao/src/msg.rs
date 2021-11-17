@@ -1,5 +1,5 @@
-use cosmwasm_std::Uint128;
-use cw20::Cw20ReceiveMsg;
+use cosmwasm_std::{Binary, Uint128};
+use cw20::{Cw20Coin, Cw20ReceiveMsg};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +11,25 @@ pub struct InstantiateMsg {
     /// The number of webdao tokens that must be locked in order to
     /// create a new proposal.
     pub proposal_cost: Uint128,
+
+    /// Information about the voting tokens that the DAO will use.
+    pub token_info: TokenInstantiateInfo,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct TokenInstantiateInfo {
+    /// The name of the token.
+    pub name: String,
+    /// The symbol for the token.
+    pub symbol: String,
+    /// The number of decimals that frontends should display when
+    /// showing token balances. For example, if an address has 100,000
+    /// tokens and the decimal number is 3 then the displayed balance
+    /// will be 100.000.
+    pub decimals: u8,
+    /// The initial token balances. This determins the number of
+    /// tokens that will initially be in circulation.
+    pub initial_balances: Vec<Cw20Coin>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -30,6 +49,7 @@ pub struct WebItem {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum ProposeAction {
     /// Proposes that the quorum be changed to a new value.
     ChangeQuorum { new_quorum: Uint128 },
@@ -54,6 +74,7 @@ pub struct ProposeMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum VotePosition {
     /// I would like to execute the proposal.
     Yes,
@@ -75,6 +96,7 @@ pub struct VoteMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum TokenMsg {
     /// Creates a new proposal.
     Propose(ProposeMsg),
@@ -94,6 +116,18 @@ pub enum ExecuteMsg {
     /// information about the proposal or vote encoded in the `msg`
     /// field.
     Receive(Cw20ReceiveMsg),
+
+    /// Move tokens to another account without triggering actions
+    Transfer { recipient: String, amount: Uint128 },
+    /// Destroy tokens forever
+    Burn { amount: Uint128 },
+    /// Transfer tokens to a contract and trigger an action on the
+    /// receiving contract.
+    Send {
+        contract: String,
+        amount: Uint128,
+        msg: Binary,
+    },
 }
 
 /// Paginated listing of proposals.
@@ -118,4 +152,11 @@ pub enum QueryMsg {
     GetQuorum,
     /// Get information about what the current proposal cost is.
     GetProposalCost,
+
+    /// Ask the contract how many tokens a particular address
+    /// controls.
+    Balance { address: String },
+    /// Get info about the token. Returns a TokenInfoResponse
+    /// containing {name, ticker, decimal, total_supply}.
+    TokenInfo,
 }

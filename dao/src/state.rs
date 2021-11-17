@@ -1,8 +1,8 @@
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cw_storage_plus::Item;
+use cw_storage_plus::{Item, Map};
 
 use crate::msg::{ProposeAction, ProposeMsg};
 
@@ -37,8 +37,18 @@ pub struct Proposal {
     pub abstain: Uint128,
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct TokenInfo {
+    pub name: String,
+    pub symbol: String,
+    pub decimals: u8,
+    pub total_supply: Uint128,
+}
+
 pub const STATE: Item<State> = Item::new("state");
 pub const PROPOSALS: Item<Vec<Proposal>> = Item::new("proposals");
+pub const BALANCES: Map<&Addr, Uint128> = Map::new("balances");
+pub const TOKEN_INFO: Item<TokenInfo> = Item::new("token_info");
 
 impl From<ProposeMsg> for Proposal {
     fn from(msg: ProposeMsg) -> Self {
