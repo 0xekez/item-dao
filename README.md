@@ -26,12 +26,17 @@ converted to snake case during serialization.
 - code_id: `59`
 - address: `juno1cxnmukp9tjxksduey6wkgqmwzuvhvqqcwqq54pfh45xt7ze9kmjsjhng0u`
 
-## dao program v0.3
+### dao program v0.3
 Same as v0.2 but with the snake case bug fixes.
 
 - code_id: `60`
 - address: `juno10wmp4czgnww9tvwg7xu239k88vx4ksyqwah245nsaj7lz6r9v6uqdepwc2`
 
+### dao program v0.4
+The DAO now implements the cw20 interface.
+
+- code_id: `71`
+- address: `juno1aj4khuq9descgr3r9ejs2t7gdqa83f3ufl8s8gwfeza8mgl238zsj5fzpv`
 
 ## Misc reference
 

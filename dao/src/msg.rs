@@ -99,15 +99,6 @@ pub struct VoteMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum TokenMsg {
-    /// Creates a new proposal.
-    Propose(ProposeMsg),
-    /// Votes on an existing proposal.
-    Vote(VoteMsg),
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     /// Provides a means via which token holders can unlock tokens
     /// that have been comitted to a proposal.

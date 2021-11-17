@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn cw20_receive() {
+    fn make_proposal() {
         let mut deps = mock_dependencies(&[]);
 
         let msg = InstantiateMsg {
@@ -230,6 +230,17 @@ mod tests {
         // interesting quirk.. Good to keep in mind.
         let value: ProposeMsg = from_binary(&res).unwrap();
         assert_eq!(proposal, value);
+
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: "🦄".to_string(),
+            },
+        )
+        .unwrap();
+        let value: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(value.balance, Uint128::from(99999u128))
     }
 
     #[test]
@@ -264,7 +275,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn cw20_receive_insufficent_funds() {
+    fn insufficent_token_funds() {
         let mut deps = mock_dependencies(&[]);
 
         let msg = InstantiateMsg {
@@ -277,6 +288,8 @@ mod tests {
                 symbol: "IDAO".to_string(),
                 decimals: 3,
                 initial_balances: vec![Cw20Coin {
+                    // note that the unicorn wallet doesn't have any
+                    // funds.
                     address: "awallet".to_string(),
                     amount: Uint128::from(100000u128),
                 }],
@@ -369,6 +382,20 @@ mod tests {
         let prop: Proposal = from_binary(&res).unwrap();
         assert_eq!(prop.status, ProposalStatus::Pending);
         assert_eq!(prop.yes, Uint128::from(97u128));
+
+        // Also assert that funds have been deducted from the proposer
+        // voter's accounts. 1 token for the proposal and 97 for the
+        // vote.
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Balance {
+                address: "🦄".to_string(),
+            },
+        )
+        .unwrap();
+        let value: BalanceResponse = from_binary(&res).unwrap();
+        assert_eq!(value.balance, Uint128::from(99902u128))
     }
 
     #[test]
