@@ -3,13 +3,78 @@
   "title": "QueryMsg",
   "anyOf": [
     {
+      "type": "string",
+      "enum": [
+        "list_proposals",
+        "list_items",
+        "get_quorum",
+        "get_proposal_cost",
+        "token_info"
+      ]
+    },
+    {
+      "description": "Get title, body, and action information for a proposal given it's proposal ID.",
       "type": "object",
       "required": [
-        "get_count"
+        "get_proposal"
       ],
       "properties": {
-        "get_count": {
-          "type": "object"
+        "get_proposal": {
+          "type": "object",
+          "required": [
+            "proposal_id"
+          ],
+          "properties": {
+            "proposal_id": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Get all of the items that have been added to the DAO.",
+      "type": "object",
+      "required": [
+        "get_item"
+      ],
+      "properties": {
+        "get_item": {
+          "type": "object",
+          "required": [
+            "item_id"
+          ],
+          "properties": {
+            "item_id": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Ask the contract how many tokens a particular address controls.",
+      "type": "object",
+      "required": [
+        "balance"
+      ],
+      "properties": {
+        "balance": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          }
         }
       },
       "additionalProperties": false

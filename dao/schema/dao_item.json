@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DaoItem",
+  "type": "object",
+  "required": [
+    "contents",
+    "name"
+  ],
+  "properties": {
+    "contents": {
+      "description": "The contents of the webpage. Webdao doesn't have prefered markdown format. Frontends can figure that out.",
+      "type": "string"
+    },
+    "name": {
+      "description": "The name of the webpage. Frontends are likely to make the webpage accessible at `/name`.",
+      "type": "string"
+    }
+  }
+}

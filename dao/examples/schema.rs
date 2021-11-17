@@ -4,9 +4,7 @@ use std::fs::create_dir_all;
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
 use dao::msg::*;
-use dao::state::State;
-
-// FIXME(zeke): update this once schema is known.
+use dao::state::*;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -18,4 +16,6 @@ fn main() {
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(State), &out_dir);
+    export_schema(&schema_for!(Proposal), &out_dir);
+    export_schema(&schema_for!(DaoItem), &out_dir);
 }

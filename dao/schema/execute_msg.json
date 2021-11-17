@@ -3,37 +3,307 @@
   "title": "ExecuteMsg",
   "anyOf": [
     {
+      "description": "Provides a means via which token holders can unlock tokens that have been comitted to a proposal.",
       "type": "object",
       "required": [
-        "increment"
+        "withdraw"
       ],
       "properties": {
-        "increment": {
-          "type": "object"
+        "withdraw": {
+          "$ref": "#/definitions/WithdrawVoteMsg"
         }
       },
       "additionalProperties": false
     },
     {
+      "description": "Create a new proposal",
       "type": "object",
       "required": [
-        "reset"
+        "propose"
       ],
       "properties": {
-        "reset": {
+        "propose": {
+          "$ref": "#/definitions/ProposeMsg"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Vote on an existing proposal",
+      "type": "object",
+      "required": [
+        "vote"
+      ],
+      "properties": {
+        "vote": {
+          "$ref": "#/definitions/VoteMsg"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Move tokens to another account without triggering actions",
+      "type": "object",
+      "required": [
+        "transfer"
+      ],
+      "properties": {
+        "transfer": {
           "type": "object",
           "required": [
-            "count"
+            "amount",
+            "recipient"
           ],
           "properties": {
-            "count": {
-              "type": "integer",
-              "format": "int32"
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "recipient": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Destroy tokens forever",
+      "type": "object",
+      "required": [
+        "burn"
+      ],
+      "properties": {
+        "burn": {
+          "type": "object",
+          "required": [
+            "amount"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Transfer tokens to a contract and trigger an action on the receiving contract.",
+      "type": "object",
+      "required": [
+        "send"
+      ],
+      "properties": {
+        "send": {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract",
+            "msg"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract": {
+              "type": "string"
+            },
+            "msg": {
+              "$ref": "#/definitions/Binary"
             }
           }
         }
       },
       "additionalProperties": false
     }
-  ]
+  ],
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+      "type": "string"
+    },
+    "DaoItem": {
+      "type": "object",
+      "required": [
+        "contents",
+        "name"
+      ],
+      "properties": {
+        "contents": {
+          "description": "The contents of the webpage. Webdao doesn't have prefered markdown format. Frontends can figure that out.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The name of the webpage. Frontends are likely to make the webpage accessible at `/name`.",
+          "type": "string"
+        }
+      }
+    },
+    "ProposeAction": {
+      "anyOf": [
+        {
+          "description": "Proposes that the quorum be changed to a new value.",
+          "type": "object",
+          "required": [
+            "change_quorum"
+          ],
+          "properties": {
+            "change_quorum": {
+              "type": "object",
+              "required": [
+                "new_quorum"
+              ],
+              "properties": {
+                "new_quorum": {
+                  "$ref": "#/definitions/Uint128"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Proposes that the cost of creating a new proposal be changed to a new value.",
+          "type": "object",
+          "required": [
+            "change_proposal_cost"
+          ],
+          "properties": {
+            "change_proposal_cost": {
+              "type": "object",
+              "required": [
+                "new_proposal_cost"
+              ],
+              "properties": {
+                "new_proposal_cost": {
+                  "$ref": "#/definitions/Uint128"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Proposes that a new webpage be added.",
+          "type": "object",
+          "required": [
+            "add_item"
+          ],
+          "properties": {
+            "add_item": {
+              "$ref": "#/definitions/DaoItem"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Proposes that an existinig webpage be removed.",
+          "type": "object",
+          "required": [
+            "remove_item"
+          ],
+          "properties": {
+            "remove_item": {
+              "type": "object",
+              "required": [
+                "id"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0.0
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ProposeMsg": {
+      "type": "object",
+      "required": [
+        "action",
+        "body",
+        "title"
+      ],
+      "properties": {
+        "action": {
+          "description": "The action that will be executed should the proposal pass.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProposeAction"
+            }
+          ]
+        },
+        "body": {
+          "description": "The body of the proposal.",
+          "type": "string"
+        },
+        "title": {
+          "description": "The title of the proposal.",
+          "type": "string"
+        }
+      }
+    },
+    "Uint128": {
+      "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+      "type": "string"
+    },
+    "VoteMsg": {
+      "type": "object",
+      "required": [
+        "amount",
+        "position",
+        "proposal_id"
+      ],
+      "properties": {
+        "amount": {
+          "description": "The number of tokens that should be staked to this vote.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "position": {
+          "description": "What position that sender would like to lock their tokens to.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/VotePosition"
+            }
+          ]
+        },
+        "proposal_id": {
+          "description": "The ID of the proposal that the sender would like to lock their tokens on.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        }
+      }
+    },
+    "VotePosition": {
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "abstain"
+      ]
+    },
+    "WithdrawVoteMsg": {
+      "type": "object",
+      "required": [
+        "proposal_id"
+      ],
+      "properties": {
+        "proposal_id": {
+          "description": "The id of the propsal that the vote ought to be withdrawn for.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        }
+      }
+    }
+  }
 }
