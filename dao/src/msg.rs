@@ -35,7 +35,7 @@ pub struct TokenInstantiateInfo {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct WithdrawVoteMsg {
     /// The id of the propsal that the vote ought to be withdrawn for.
-    pub proposal_id: usize,
+    pub proposal_id: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -60,7 +60,7 @@ pub enum ProposeAction {
     /// Proposes that a new webpage be added.
     AddItem(DaoItem),
     /// Proposes that an existinig webpage be removed.
-    RemoveItem { id: usize },
+    RemoveItem { id: u64 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -90,7 +90,7 @@ pub enum VotePosition {
 pub struct VoteMsg {
     /// The ID of the proposal that the sender would like to lock
     /// their tokens on.
-    pub proposal_id: usize,
+    pub proposal_id: u64,
     /// What position that sender would like to lock their tokens to.
     pub position: VotePosition,
     /// The number of tokens that should be staked to this vote.
@@ -129,12 +129,12 @@ pub enum QueryMsg {
     ListProposals,
     /// Get title, body, and action information for a proposal given
     /// it's proposal ID.
-    GetProposal { proposal_id: usize },
+    GetProposal { proposal_id: u64 },
 
     /// List all of the items that have been added to the DAO.
     ListItems,
     /// Get all of the items that have been added to the DAO.
-    GetItem { item_id: usize },
+    GetItem { item_id: u64 },
 
     /// Get information about what the current quorum is.
     GetQuorum,

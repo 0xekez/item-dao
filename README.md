@@ -23,6 +23,176 @@ browsing `schmea/`.
 - Query the DAO to see items that have been voted in and introspect
   about its current state.
 
+## An example
+
+Say we want to create an item dao that holds contact information about
+our group.
+
+First, we instantiate a version of itemdao. Here we use `code_id` `94`
+as that is the most recent version of item dao listed below in the
+"Addresses" section. During the instantiation we'll send some tokens
+to some of our friends who are part of the DAO. Here's the command:
+
+```
+junod tx wasm instantiate 94 '{"quorum":"100","proposal_cost":"1","token_info":{"name":"Item DAO","symbol":"IDAO","decimals":0,"initial_balances":[{"address":"juno1m7a7nva00p82xr0tssye052r8sxsxvcy2v5qz6","amount":"1000000"},{"address":"juno1754qkhjmpx79swk445zgg5vge2sh33ejzgc28z","amount":"1000000"}]}}' --label 'v0.5' --from ocax101 --chain-id uni --gas auto --fees 5000ujunox
+```
+
+This is a big command. You'll want to replace the `--from` line with
+the name of a key you have on your local machine. You'll also want to
+replace the addresses above with the address of your friends who you
+would like to send tokens to.
+
+Here's a better look at the initialization message that we're sending
+to the contract:
+
+```json
+{
+    "quorum": "100",
+    "proposal_cost": "1",
+    "token_info": {
+        "name": "Item DAO",
+        "symbol": "IDAO",
+        "decimals": 0,
+        "initial_balances": [
+            {
+                "address": "juno1m7a7nva00p82xr0tssye052r8sxsxvcy2v5qz6",
+                "amount": "1000000"
+            },
+            {
+                "address": "juno1754qkhjmpx79swk445zgg5vge2sh33ejzgc28z",
+                "amount": "1000000"
+            }
+        ]
+    }
+}
+```
+
+As you can see in the `initial_balances` section we are sending a
+million tokens to our friends who will be part of the DAO. You need
+these tokens to vote.
+
+Having instantiated the DAO lets submit a proposal that will add a
+contact for ourselves. Our proposal will look like this:
+
+```json
+{
+    "propose": {
+        "title": "add zeke to the address book",
+        "body": "zeke is a good friend and we should keep their email around",
+        "action": {
+            "add_item": {
+                "name": "zeke",
+                "contents": "zekemedley@gmail.com"
+            }
+        }
+    }
+}
+```
+
+Our command to submit the proposal will look like this:
+
+```
+junod tx wasm execute juno15ah47zrj2qdcfa3ane6psv0xnylsdjuj3ccxlqprun4ymzsh8kkqzjhxv0 '{"propose":{"title":"add zeke to the address book","body":"zeke is a good friend and we should keep their email around","action":{"add_item":{"name":"zeke","contents":"zekemedley@gmail.com"}}}}' --from ocax101 --output json --yes --fees 6000ujunox --gas auto
+```
+
+Having done that we can query the DAO to see what the status of our
+proposal is. Because this is the first proposal to be submitted to the
+DAO it has ID 0.
+
+```
+junod query wasm contract-state smart juno1eu70kcgh0d2rlm0n88dgtry9wpqnerf5n2fdzt5sxm6d3vrqq3xqa5e9x8 '{"get_proposal":{"proposal_id":0}}' --output json | jq
+```
+
+Cool! This will show us output like this:
+
+```json
+{
+  "data": {
+    "title": "add zeke to the address book",
+    "body": "zeke is a good friend and we should keep their email around",
+    "action": {
+      "add_item": {
+        "name": "zeke",
+        "contents": "zekemedley@gmail.com"
+      }
+    },
+    "status": "Pending",
+    "yes": [],
+    "no": [],
+    "abstain": [],
+    "proposer": "juno1754qkhjmpx79swk445zgg5vge2sh33ejzgc28z",
+    "proposal_cost": "1"
+  }
+}
+```
+
+Now lets vote on the proposal. In this case we have enough tokens to
+pass it ourselves. In a world where your DAO is managed by your
+friends you'd probably want to set the quorum to be high enough that
+this is less easy.
+
+```
+junod tx wasm execute juno1eu70kcgh0d2rlm0n88dgtry9wpqnerf5n2fdzt5sxm6d3vrqq3xqa5e9x8 '{"vote":{"proposal_id":0,"position":"yes","amount":"100"}}' --from ocax101 --output json --yes --fees 6000ujunox --gas auto
+```
+
+Now if we query the proposal state again we can see that the proposal
+has passed!
+
+```json
+{
+  "data": {
+    "title": "add zeke to the address book",
+    "body": "zeke is a good friend and we should keep their email around",
+    "action": {
+      "add_item": {
+        "name": "zeke",
+        "contents": "zekemedley@gmail.com"
+      }
+    },
+    "status": "Passed",
+    "yes": [
+      [
+        "juno1754qkhjmpx79swk445zgg5vge2sh33ejzgc28z",
+        "100"
+      ]
+    ],
+    "no": [],
+    "abstain": [],
+    "proposer": "juno1754qkhjmpx79swk445zgg5vge2sh33ejzgc28z",
+    "proposal_cost": "1"
+  }
+}
+```
+
+The output of this proposal was a new item. In the `yes` section we
+can see that our vote and the amount of tokens we staked was
+recorded. We can also query the contract to see that new item as
+follows:
+
+```
+junod query wasm contract-state smart juno1eu70kcgh0d2rlm0n88dgtry9wpqnerf5n2fdzt5sxm6d3vrqq3xqa5e9x8 '{"get_item":{"item_id":0}}' --output json | jq
+```
+
+```json
+{
+  "data": {
+    "name": "zeke",
+    "contents": "zekemedley@gmail.com"
+  }
+}
+```
+
+Finally, we can verify that the tokens that we used to vote were sent
+back to us when the vote completed by running:
+
+```
+junod query wasm contract-state smart juno1eu70kcgh0d2rlm0n88dgtry9wpqnerf5n2fdzt5sxm6d3vrqq3xqa5e9x8 '{"balance":{"address":"juno1754qkhjmpx79swk445zgg5vge2sh33ejzgc28z"}}'
+```
+
+This is just a sample of the commands avaliable to interact with the
+DAO. For a complete reference see `src/msg.rs`
+
+
 ## Design
 
 Item DAO was [initially
@@ -93,16 +263,5 @@ The DAO now implements the cw20 interface.
 Deployment pending. Implements all of the functionality described in
 `src/msg.rs`.
 
-## Example commands
-
-Example execute message to create a new proposal:
-
-```
-'{"propose":{"title":"all twitter profile photos should be 🦄s!","body":"by making all of our twitter profile photos 🦄 emojis it will be clear that we are part of a top secret club.","action":{"add_item":{"name":"🦄 twitter profile photos required","contents":"all twitter profiles shall be 🦄s"}}}}'
-```
-
-Example query to view a proposal
-
-```
-junod query wasm contract-state smart juno10wmp4czgnww9tvwg7xu239k88vx4ksyqwah245nsaj7lz6r9v6uqdepwc2 '{"get_proposal":{"proposal_id": 0}}'
-```
+- code_id: `94`
+- address: `juno1eu70kcgh0d2rlm0n88dgtry9wpqnerf5n2fdzt5sxm6d3vrqq3xqa5e9x8`

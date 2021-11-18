@@ -93,7 +93,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ListProposals => Ok(to_binary(&PROPOSALS.load(deps.storage)?)?),
         QueryMsg::GetProposal { proposal_id } => {
             let proposals = PROPOSALS.load(deps.storage)?;
-            Ok(to_binary(proposals.get(proposal_id).ok_or(
+            Ok(to_binary(proposals.get(proposal_id as usize).ok_or(
                 StdError::NotFound {
                     kind: format!("no such proposal ID ({})", proposal_id),
                 },
@@ -102,7 +102,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ListItems => Ok(to_binary(&ITEMS.load(deps.storage)?)?),
         QueryMsg::GetItem { item_id } => {
             let items = ITEMS.load(deps.storage)?;
-            Ok(to_binary(items.get(item_id).ok_or(
+            Ok(to_binary(items.get(item_id as usize).ok_or(
                 StdError::NotFound {
                     kind: format!("no such item ID ({})", item_id),
                 },

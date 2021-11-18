@@ -58,7 +58,7 @@ pub(crate) fn handle_vote(
 
     let proposals =
         PROPOSALS.update(deps.storage, |mut proposals| -> Result<_, ContractError> {
-            match proposals.get_mut(vote.proposal_id) {
+            match proposals.get_mut(vote.proposal_id as usize) {
                 Some(proposal) => {
                     if proposal.status != ProposalStatus::Pending {
                         return Err(ContractError::VoteOnCompletedProposal);
@@ -88,8 +88,8 @@ pub(crate) fn handle_vote(
             Ok(proposals)
         })?;
 
-    if proposals[proposal_id].status != ProposalStatus::Pending {
-        handle_proposal_completion(deps, env, info, &proposals[proposal_id])?;
+    if proposals[proposal_id as usize].status != ProposalStatus::Pending {
+        handle_proposal_completion(deps, env, info, &proposals[proposal_id as usize])?;
     }
 
     Ok(Response::new()
@@ -129,7 +129,7 @@ fn handle_proposal_completion(
         }
         ProposeAction::RemoveItem { id } => {
             ITEMS.update(deps.storage, |mut items| -> Result<_, ContractError> {
-                items.remove(*id);
+                items.remove(*id as usize);
                 Ok(items)
             })?;
         }
@@ -176,7 +176,7 @@ pub(crate) fn handle_withdrawal(
 ) -> Result<Response, ContractError> {
     let mut withdrawn = Uint128::zero();
     PROPOSALS.update(deps.storage, |mut proposals| -> Result<_, ContractError> {
-        match proposals.get_mut(msg.proposal_id) {
+        match proposals.get_mut(msg.proposal_id as usize) {
             Some(proposal) => {
                 if proposal.status != ProposalStatus::Pending {
                     return Err(ContractError::VoteOnCompletedProposal);
