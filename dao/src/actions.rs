@@ -20,15 +20,17 @@ pub(crate) fn handle_propose(
     // program will bail out.
     tokens::execute_transfer(deps.branch(), env, info.clone(), contract_addr, cost)?;
 
-    PROPOSALS.update(deps.storage, |mut proposals| -> Result<_, ContractError> {
-        proposals.push(Proposal::new(proposal.clone(), info.sender, cost));
-        Ok(proposals)
-    })?;
+    let proposals =
+        PROPOSALS.update(deps.storage, |mut proposals| -> Result<_, ContractError> {
+            proposals.push(Proposal::new(proposal.clone(), info.sender, cost));
+            Ok(proposals)
+        })?;
 
     Ok(Response::new()
         .add_attribute("method", "propose")
         .add_attribute("title", proposal.title)
         .add_attribute("body", proposal.body)
+        .add_attribute("proposal_id", proposals.len().to_string())
         .add_attribute("action", format!("{:?}", proposal.action)))
 }
 
@@ -94,7 +96,7 @@ pub(crate) fn handle_vote(
 
     Ok(Response::new()
         .add_attribute("method", "vote")
-        .add_attribute("proposal", proposal_id.to_string())
+        .add_attribute("proposal_id", proposal_id.to_string())
         .add_attribute("tokens", amount))
 }
 
