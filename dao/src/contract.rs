@@ -595,6 +595,11 @@ mod tests {
         .unwrap();
         let balance: BalanceResponse = from_binary(&res).unwrap();
         assert_eq!(Uint128::from(100000u128), balance.balance);
+
+	// Check that the item was not added
+	let items = query(deps.as_ref(), mock_env(), QueryMsg::ListItems).unwrap();
+        let items: Vec<DaoItem> = from_binary(&items).unwrap();
+        assert_eq!(items.len(), 0);
     }
 
     #[test]

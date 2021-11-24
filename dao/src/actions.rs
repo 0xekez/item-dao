@@ -110,33 +110,6 @@ fn handle_proposal_completion(
 ) -> Result<(), ContractError> {
     assert!(proposal.status != ProposalStatus::Pending);
 
-    match &proposal.action {
-        ProposeAction::ChangeQuorum { new_quorum } => {
-            STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-                state.quorum = *new_quorum;
-                Ok(state)
-            })?;
-        }
-        ProposeAction::ChangeProposalCost { new_proposal_cost } => {
-            STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-                state.proposal_cost = *new_proposal_cost;
-                Ok(state)
-            })?;
-        }
-        ProposeAction::AddItem(item) => {
-            ITEMS.update(deps.storage, |mut items| -> Result<_, ContractError> {
-                items.push(item.clone());
-                Ok(items)
-            })?;
-        }
-        ProposeAction::RemoveItem { id } => {
-            ITEMS.update(deps.storage, |mut items| -> Result<_, ContractError> {
-                items.remove(*id as usize);
-                Ok(items)
-            })?;
-        }
-    }
-
     // Refund the proposer.
     tokens::execute_transfer(
         deps.branch(),
@@ -165,6 +138,38 @@ fn handle_proposal_completion(
             addr.to_string(),
             *amount,
         )?;
+    }
+
+    // Perform an action as needed.
+    if proposal.status != ProposalStatus::Passed {
+	return Ok(())
+    }
+
+    match &proposal.action {
+        ProposeAction::ChangeQuorum { new_quorum } => {
+            STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
+                state.quorum = *new_quorum;
+                Ok(state)
+            })?;
+        }
+        ProposeAction::ChangeProposalCost { new_proposal_cost } => {
+            STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
+                state.proposal_cost = *new_proposal_cost;
+                Ok(state)
+            })?;
+        }
+        ProposeAction::AddItem(item) => {
+            ITEMS.update(deps.storage, |mut items| -> Result<_, ContractError> {
+                items.push(item.clone());
+                Ok(items)
+            })?;
+        }
+        ProposeAction::RemoveItem { id } => {
+            ITEMS.update(deps.storage, |mut items| -> Result<_, ContractError> {
+                items.remove(*id as usize);
+                Ok(items)
+            })?;
+        }
     }
 
     Ok(())
