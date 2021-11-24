@@ -265,3 +265,9 @@ Deployment pending. Implements all of the functionality described in
 
 - code_id: `94`
 - address: `juno1eu70kcgh0d2rlm0n88dgtry9wpqnerf5n2fdzt5sxm6d3vrqq3xqa5e9x8`
+
+**dao program `v0.6`**
+Bugfixes
+
+- code_id: `179`
+- address: `juno1skuakpnx8gec0avqdr00nl5339k5nc6rplsnr4gtv3ge3q8e2l2qwayda3`

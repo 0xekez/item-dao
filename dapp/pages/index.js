@@ -11,14 +11,14 @@ let loadingItems = true
 
 const propGetter = async (setProps) => {
     const client = await getClient()
-    const props = await client.queryContractSmart('juno1eu70kcgh0d2rlm0n88dgtry9wpqnerf5n2fdzt5sxm6d3vrqq3xqa5e9x8', "list_proposals")
+    const props = await client.queryContractSmart('juno1skuakpnx8gec0avqdr00nl5339k5nc6rplsnr4gtv3ge3q8e2l2qwayda3', "list_proposals")
     loadingProps = false
     setProps(props)
 }
 
 const itemGetter = async (setItems) => {
     const client = await getClient()
-    const items = await client.queryContractSmart('juno1eu70kcgh0d2rlm0n88dgtry9wpqnerf5n2fdzt5sxm6d3vrqq3xqa5e9x8', "list_items")
+    const items = await client.queryContractSmart('juno1skuakpnx8gec0avqdr00nl5339k5nc6rplsnr4gtv3ge3q8e2l2qwayda3', "list_items")
     loadingItems = false
     setItems(items)
 }

@@ -12,7 +12,7 @@ let loading = true
 
 const getProp = async (id, setProp) => {
     const client = await getClient()
-    const prop = await client.queryContractSmart('juno1eu70kcgh0d2rlm0n88dgtry9wpqnerf5n2fdzt5sxm6d3vrqq3xqa5e9x8', {"get_proposal": { "proposal_id": parseInt(id)}})
+    const prop = await client.queryContractSmart('juno1skuakpnx8gec0avqdr00nl5339k5nc6rplsnr4gtv3ge3q8e2l2qwayda3', {"get_proposal": { "proposal_id": parseInt(id)}})
     loading = false
     setProp(prop)
 }
