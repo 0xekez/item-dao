@@ -30,7 +30,11 @@ export default function Proposal() {
     if (loading) {
 	return (
 	    <Layout>
-		<Heading as='h3'>proposal {id}</Heading>
+		<Flex>
+		    <Heading as='h3' sx={{mt: 2, mr: 1}}><Link href='/'>item-dao</Link></Heading>
+		    <Heading as='h3' sx={{mt: 2, mr: 1}}>|</Heading>
+		    <Heading as='h3' sx={{mt: 2, mr: 1}}>proposal {id}</Heading>
+		</Flex>
 		<Spinner/>
 	    </Layout>
 	)
@@ -50,7 +54,7 @@ export default function Proposal() {
 		{prop.body}
 	    </Paragraph>
 	    <Heading variant="text.heading" sx={{mt: 2}}>action</Heading>
-	    <Box p={4} color="white" bg="muted" sx={{fontFamily: "monospace", mt: 2}}>
+	    <Box p={4} color="white" bg="muted" sx={{fontFamily: "monospace", mt: 2, overflow: "scroll"}}>
 		{prop.action ? JSON.stringify(prop.action) : ""}
 	    </Box>
 	</Layout>
