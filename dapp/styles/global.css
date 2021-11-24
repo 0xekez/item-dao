@@ -1,0 +1,13 @@
+a {
+  color: hsl(290, 100%, 80%);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+main {
+    max-width: 600px;
+    margin: auto;
+}
