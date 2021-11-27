@@ -16,6 +16,9 @@ export const theme = makeTheme({
 	purple: 'hsl(290, 100%, 80%)',
 	muted: 'hsla(230, 20%, 0%, 20%)',
 	gray: 'hsl(210, 50%, 60%)',
+	yes: '#0A8754',
+	no: '#FF3C38',
+	abstain: '#C2A83E',
     },
     fonts: {
 	body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',

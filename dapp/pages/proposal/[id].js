@@ -1,12 +1,13 @@
 import {getClient} from '../../components/client.js'
 import {useState} from 'react'
 import Layout from '../../components/layout.js'
+import Votes from '../../components/votes.js'
 
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
 import { Flex, NavLink, Box } from 'theme-ui'
-import { Spinner, Heading, Paragraph, Message } from 'theme-ui'
+import { Spinner, Heading, Paragraph, Message, Container } from 'theme-ui'
 
 let loading = true
 
@@ -47,16 +48,21 @@ export default function Proposal() {
 		<Heading as='h3' sx={{mt: 2, mr: 1}}>|</Heading>
 		<Heading as='h3' sx={{mt: 2, mr: 1}}>proposal {id}</Heading>
 	    </Flex>
+	    <Box mt={2} p={1} bg="highlight">
+		{prop.status}
+	    </Box>
 	    <Heading variant="text.display">
 		{prop ? prop.title : "Proposal {id}"}
 	    </Heading>
 	    <Paragraph>
 		{prop.body}
 	    </Paragraph>
-	    <Heading variant="text.heading" sx={{mt: 2}}>action</Heading>
+	    <Heading variant="text.heading" mt={2}>action</Heading>
 	    <Box p={4} color="white" bg="muted" sx={{fontFamily: "monospace", mt: 2, overflow: "scroll"}}>
 		{prop.action ? JSON.stringify(prop.action) : ""}
 	    </Box>
+	    <Heading variant="text.heading" mt={2}>votes</Heading>
+	    <Votes yes={prop.yes} no={prop.no} abstain={prop.abstain}/>
 	</Layout>
     )
 }
